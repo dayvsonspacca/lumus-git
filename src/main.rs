@@ -10,10 +10,16 @@ struct Args {
     command: Commands,
 }
 
+#[derive(Parser, Debug)]
+struct ContributorsArgs {
+    #[clap(short, long, default_value = "50")]
+    limit: usize,
+}
+
 #[derive(Debug, Subcommand)]
 enum Commands {
     /// Show contributors
-    Contributors,
+    Contributors(ContributorsArgs),
 }
 
 #[derive(Table)]
@@ -28,17 +34,18 @@ struct ContributorRow {
 
 fn main() {
     let args = Args::parse();
-
     match args.command {
-        Commands::Contributors => show_contributors(),
+        Commands::Contributors(contr_args) => show_contributors(contr_args.limit),
     }
 }
 
-fn show_contributors() {
+fn show_contributors(limit: usize) {
     let repo = Repository::open(".").expect("Failed to open repository");
 
     let mut revwalk = repo.revwalk().expect("Failed to create revision walker");
     revwalk.push_head().expect("Failed to push head");
+
+    println!("Fetching contributors data, can take a while...");
 
     let mut authors: HashMap<String, ContributorRow> = HashMap::new();
 
@@ -63,6 +70,8 @@ fn show_contributors() {
 
     let mut table: Vec<ContributorRow> = authors.into_values().collect();
     table.sort_by_key(|row| std::cmp::Reverse(row.commits));
+
+    table.truncate(limit);
 
     print_stdout(table.with_title()).expect("Failed to print table");
 }
